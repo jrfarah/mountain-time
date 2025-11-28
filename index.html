@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mountain Time - Interactive Peak Alignment Viewer</title>
+    <title>Mountain Time</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -12,62 +14,36 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f6f4;
+            color: #2c2c2c;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Main Layout */
+        .app-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            color: #333;
+            height: 100vh;
+            width: 100vw;
         }
 
-        .container {
-            width: 100%;
-            max-width: 1400px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
-
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px 40px;
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .subtitle {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .viewer-section {
-            padding: 40px;
-        }
-
-        .canvas-container {
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
             position: relative;
-            width: 100%;
-            background: #f5f5f5;
-            border-radius: 12px;
+            background: #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
         }
 
         #imageCanvas {
-            display: block;
-            width: 100%;
-            height: auto;
+            max-width: 100%;
+            max-height: 100%;
             cursor: grab;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
 
         #imageCanvas:active {
@@ -80,12 +56,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(42, 42, 42, 0.98);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 10;
+            backdrop-filter: blur(10px);
         }
 
         .loading-overlay.hidden {
@@ -93,12 +70,12 @@
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(139, 115, 85, 0.1);
+            border-top: 3px solid #8b7355;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 1s ease-in-out infinite;
             margin-bottom: 20px;
         }
 
@@ -107,130 +84,260 @@
             100% { transform: rotate(360deg); }
         }
 
-        .controls {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        .slider-container {
-            margin-bottom: 25px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border: 2px solid #e9ecef;
-        }
-
-        .slider-container.active {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-weight: 600;
-            color: #555;
-        }
-
-        .slider-title {
-            font-size: 0.9em;
-            color: #667eea;
-            text-transform: uppercase;
+        .loading-text {
+            color: #8b7355;
+            font-size: 15px;
+            font-weight: 400;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
         }
 
-        .current-date {
-            color: #667eea;
-            font-weight: 700;
+        /* Side Control Panel */
+        .control-panel {
+            width: 420px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            box-shadow: -2px 0 30px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border-left: 1px solid rgba(139, 115, 85, 0.1);
+        }
+
+        .control-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.2);
+            border-radius: 3px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 115, 85, 0.3);
+        }
+
+        /* Header */
+        .panel-header {
+            padding: 40px 32px 32px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.08);
+        }
+
+        .app-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: #2c2c2c;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .app-subtitle {
+            font-size: 13px;
+            color: #8b7355;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        /* Content Sections */
+        .panel-content {
+            flex: 1;
+            padding: 32px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #8b7355;
+            margin-bottom: 16px;
+            opacity: 0.8;
+        }
+
+        /* Current Info Display */
+        .current-info {
+            background: linear-gradient(135deg, #f5f3f0 0%, #ebe8e4 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(139, 115, 85, 0.08);
+        }
+
+        .current-datetime {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c2c2c;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .current-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            font-size: 12px;
+            color: #8b7355;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-item::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            background: #8b7355;
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+
+        /* Timeline Controls */
+        .timeline-control {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(139, 115, 85, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .timeline-control:hover {
+            box-shadow: 0 4px 12px rgba(139, 115, 85, 0.08);
+        }
+
+        .timeline-control.active {
+            background: linear-gradient(135deg, #f5f3f0 0%, #ebe8e4 100%);
+            border-color: #8b7355;
+            box-shadow: 0 4px 16px rgba(139, 115, 85, 0.12);
+        }
+
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .timeline-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c2c2c;
+        }
+
+        .timeline-icon {
+            font-size: 16px;
+        }
+
+        .timeline-value {
+            font-size: 12px;
+            color: #8b7355;
+            font-weight: 500;
+        }
+
+        .timeline-slider {
+            position: relative;
         }
 
         input[type="range"] {
             width: 100%;
-            height: 8px;
-            border-radius: 5px;
-            background: #ddd;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(139, 115, 85, 0.1);
             outline: none;
             -webkit-appearance: none;
+            transition: background 0.2s;
+        }
+
+        input[type="range"]:hover {
+            background: rgba(139, 115, 85, 0.15);
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #8b7355;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            transition: transform 0.1s;
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
+            transform: scale(1.15);
+            box-shadow: 0 3px 12px rgba(139, 115, 85, 0.4);
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #8b7355;
             cursor: pointer;
             border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
         }
 
-        .button-group {
+        .timeline-range {
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 10px;
+            color: rgba(139, 115, 85, 0.6);
+            font-weight: 400;
+        }
+
+        /* Button Groups */
+        .button-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
         }
 
         button {
-            flex: 1;
-            min-width: 120px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: 600;
-            border: none;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(139, 115, 85, 0.15);
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-
-        .zoom-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .zoom-controls button {
-            min-width: 80px;
-            flex: 0;
-        }
-
-        .zoom-info {
-            padding: 8px 16px;
-            background: white;
-            border-radius: 6px;
-            font-weight: 600;
-            color: #667eea;
-            border: 2px solid #e9ecef;
+            color: #2c2c2c;
+            font-family: 'Inter', sans-serif;
         }
 
         button:hover {
-            background: #667eea;
+            background: #8b7355;
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            border-color: #8b7355;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
         }
 
         button:active {
@@ -238,191 +345,408 @@
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
             transform: none;
         }
 
-        .info-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+        button.primary {
+            background: #8b7355;
+            color: white;
+            border-color: #8b7355;
         }
 
-        .info-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #e9ecef;
+        button.primary:hover {
+            background: #755f47;
+            border-color: #755f47;
         }
 
-        .info-label {
-            font-size: 0.85em;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-
-        .info-value {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .checkbox-container {
+        /* Toggle Switch */
+        .toggle-container {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 15px;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 115, 85, 0.08);
+            transition: all 0.2s;
         }
 
-        .checkbox-container input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+        .toggle-container:hover {
+            background: #fafaf9;
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #2c2c2c;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
             cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(139, 115, 85, 0.2);
+            transition: 0.3s;
+            border-radius: 24px;
         }
 
-        .checkbox-container label {
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #8b7355;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(139, 115, 85, 0.08);
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            background: #fafaf9;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: rgba(139, 115, 85, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 16px;
             font-weight: 600;
-            cursor: pointer;
-            user-select: none;
+            color: #2c2c2c;
         }
 
-        footer {
-            padding: 20px;
+        /* Zoom Controls */
+        .zoom-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 115, 85, 0.08);
+        }
+
+        .zoom-buttons {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .zoom-buttons button {
+            padding: 10px 14px;
+            font-size: 16px;
+        }
+
+        .zoom-display {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8b7355;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* Footer */
+        .panel-footer {
+            padding: 24px 32px;
+            border-top: 1px solid rgba(139, 115, 85, 0.08);
             text-align: center;
-            color: #666;
-            font-size: 0.9em;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: rgba(139, 115, 85, 0.6);
+            line-height: 1.6;
+        }
+
+        .keyboard-hint {
+            margin-top: 12px;
+            font-size: 10px;
+            color: rgba(139, 115, 85, 0.5);
+            font-style: italic;
+        }
+
+        /* Floating Toggle Button (Mobile) */
+        .panel-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(139, 115, 85, 0.1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .panel-toggle:hover {
+            background: white;
+            transform: scale(1.05);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .control-panel {
+                width: 360px;
+            }
+            
+            .panel-content {
+                padding: 24px;
+            }
         }
 
         @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8em;
+            .control-panel {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: 400px;
+                transform: translateX(100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 50;
             }
-            
-            .viewer-section {
-                padding: 20px;
+
+            .control-panel.open {
+                transform: translateX(0);
             }
-            
-            .controls {
-                padding: 15px;
+
+            .panel-toggle {
+                display: flex;
             }
-            
-            button {
-                min-width: 100px;
-                font-size: 14px;
-                padding: 10px 16px;
+
+            .canvas-area {
+                width: 100vw;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🏔️ Mountain Time</h1>
-            <p class="subtitle">Interactive Peak Alignment Viewer</p>
-        </header>
-
-        <div class="viewer-section">
-            <div class="canvas-container">
-                <canvas id="imageCanvas"></canvas>
-                <div id="loadingOverlay" class="loading-overlay">
-                    <div class="spinner"></div>
-                    <p>Loading images...</p>
-                </div>
-            </div>
-
-            <div class="controls">
-                <div class="slider-container active" id="chronologicalContainer">
-                    <div class="slider-title">📅 Chronological Timeline</div>
-                    <div class="slider-label">
-                        <span>Ordered by Date & Time</span>
-                        <span class="current-date" id="currentDate">-</span>
-                    </div>
-                    <input type="range" id="imageSlider" class="slider" min="0" max="0" value="0" step="1">
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
-                        <span id="startDate">-</span>
-                        <span id="endDate">-</span>
-                    </div>
-                </div>
-
-                <div class="slider-container" id="timeOfDayContainer">
-                    <div class="slider-title">🌅 Time of Day</div>
-                    <div class="slider-label">
-                        <span>Ordered by Hour:Minute</span>
-                        <span class="current-date" id="currentTimeOfDay">-</span>
-                    </div>
-                    <input type="range" id="timeOfDaySlider" class="slider" min="0" max="0" value="0" step="1">
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
-                        <span id="startTimeOfDay">-</span>
-                        <span id="endTimeOfDay">-</span>
-                    </div>
-                </div>
-
-                <div class="slider-container" id="timeOfYearContainer">
-                    <div class="slider-title">🍂 Time of Year</div>
-                    <div class="slider-label">
-                        <span>Ordered by Month-Day</span>
-                        <span class="current-date" id="currentTimeOfYear">-</span>
-                    </div>
-                    <input type="range" id="timeOfYearSlider" class="slider" min="0" max="0" value="0" step="1">
-                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
-                        <span id="startTimeOfYear">-</span>
-                        <span id="endTimeOfYear">-</span>
-                    </div>
-                </div>
-
-                <div class="zoom-controls">
-                    <button id="zoomInBtn">🔍 Zoom In</button>
-                    <button id="zoomOutBtn">🔍 Zoom Out</button>
-                    <button id="resetZoomBtn">↺ Reset View</button>
-                    <div class="zoom-info" id="zoomInfo">100%</div>
-                </div>
-
-                <div class="button-group">
-                    <button id="prevBtn">← Previous</button>
-                    <button id="playBtn">▶ Play</button>
-                    <button id="nextBtn">Next →</button>
-                </div>
-
-                <div class="checkbox-container">
-                    <input type="checkbox" id="showPeaksCheckbox" checked>
-                    <label for="showPeaksCheckbox">Show alignment peaks</label>
-                </div>
-
-                <div class="info-section">
-                    <div class="info-card">
-                        <div class="info-label">Current Image</div>
-                        <div class="info-value" id="imageCounter">-</div>
-                    </div>
-                    <div class="info-card">
-                        <div class="info-label">Total Images</div>
-                        <div class="info-value" id="totalImages">-</div>
-                    </div>
-                    <div class="info-card">
-                        <div class="info-label">Date Range</div>
-                        <div class="info-value" id="dateRange">-</div>
-                    </div>
-                    <div class="info-card">
-                        <div class="info-label">Active View</div>
-                        <div class="info-value" id="activeView">Chronological</div>
-                    </div>
-                </div>
+    <div class="app-container">
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <canvas id="imageCanvas"></canvas>
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="spinner"></div>
+                <p class="loading-text">Loading images...</p>
             </div>
         </div>
 
-        <footer>
-            <p><strong>Aligned using peak-based similarity transformation</strong></p>
-            <p style="margin-top: 10px;">
-                <strong>Controls:</strong> Arrow keys to navigate | Space to play/pause | 
-                Mouse wheel to zoom | Click & drag to pan | +/- to zoom | 0 to reset view
-            </p>
-            <p style="margin-top: 5px; font-size: 0.85em; opacity: 0.8;">
-                Use the three timeline scrubbers to explore images by chronological order, time of day, or time of year
-            </p>
-        </footer>
+        <!-- Mobile Toggle Button -->
+        <div class="panel-toggle" id="panelToggle">☰</div>
+
+        <!-- Control Panel -->
+        <div class="control-panel" id="controlPanel">
+            <div class="panel-header">
+                <h1 class="app-title">Mountain Time</h1>
+                <p class="app-subtitle">Peak alignment viewer</p>
+            </div>
+
+            <div class="panel-content">
+                <!-- Current Info -->
+                <div class="current-info">
+                    <div class="current-datetime" id="currentDateTime">Loading...</div>
+                    <div class="current-meta">
+                        <span class="meta-item" id="imageCounter">— / —</span>
+                        <span class="meta-item" id="activeView">Chronological</span>
+                    </div>
+                </div>
+
+                <!-- Timeline Scrubbers -->
+                <div class="section">
+                    <div class="section-title">Timeline Views</div>
+                    
+                    <!-- Chronological -->
+                    <div class="timeline-control active" id="chronologicalContainer">
+                        <div class="timeline-header">
+                            <div class="timeline-label">
+                                <span class="timeline-icon">📅</span>
+                                <span>Chronological</span>
+                            </div>
+                            <div class="timeline-value" id="chronoValue">—</div>
+                        </div>
+                        <div class="timeline-slider">
+                            <input type="range" id="imageSlider" min="0" max="0" value="0" step="1">
+                            <div class="timeline-range">
+                                <span id="startDate">—</span>
+                                <span id="endDate">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time of Day -->
+                    <div class="timeline-control" id="timeOfDayContainer">
+                        <div class="timeline-header">
+                            <div class="timeline-label">
+                                <span class="timeline-icon">🌅</span>
+                                <span>Time of Day</span>
+                            </div>
+                            <div class="timeline-value" id="todValue">—</div>
+                        </div>
+                        <div class="timeline-slider">
+                            <input type="range" id="timeOfDaySlider" min="0" max="0" value="0" step="1">
+                            <div class="timeline-range">
+                                <span id="startTimeOfDay">—</span>
+                                <span id="endTimeOfDay">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time of Year -->
+                    <div class="timeline-control" id="timeOfYearContainer">
+                        <div class="timeline-header">
+                            <div class="timeline-label">
+                                <span class="timeline-icon">🍂</span>
+                                <span>Time of Year</span>
+                            </div>
+                            <div class="timeline-value" id="toyValue">—</div>
+                        </div>
+                        <div class="timeline-slider">
+                            <input type="range" id="timeOfYearSlider" min="0" max="0" value="0" step="1">
+                            <div class="timeline-range">
+                                <span id="startTimeOfYear">—</span>
+                                <span id="endTimeOfYear">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="section">
+                    <div class="section-title">Playback</div>
+                    <div class="button-group">
+                        <div class="button-row">
+                            <button id="prevBtn">← Prev</button>
+                            <button id="playBtn" class="primary">▶ Play</button>
+                            <button id="nextBtn">Next →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zoom Controls -->
+                <div class="section">
+                    <div class="section-title">View Controls</div>
+                    <div class="zoom-control">
+                        <div class="zoom-buttons">
+                            <button id="zoomOutBtn">−</button>
+                            <button id="resetZoomBtn">Reset</button>
+                            <button id="zoomInBtn">+</button>
+                        </div>
+                        <div class="zoom-display" id="zoomInfo">100%</div>
+                    </div>
+                </div>
+
+                <!-- Display Options -->
+                <div class="section">
+                    <div class="section-title">Display</div>
+                    <div class="toggle-container">
+                        <span class="toggle-label">Show Alignment Peaks</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showPeaksCheckbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Composite Download -->
+                <div class="section">
+                    <div class="section-title">Export</div>
+                    <button id="downloadCompositeBtn" style="width: 100%;">💾 Download Full Composite</button>
+                </div>
+
+                <!-- Statistics -->
+                <div class="section">
+                    <div class="section-title">Collection Stats</div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Images</div>
+                            <div class="stat-value" id="totalImages">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Date Range</div>
+                            <div class="stat-value" id="dateRange">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <p class="footer-text">
+                    Images aligned using peak-based similarity transformation
+                </p>
+                <p class="keyboard-hint">
+                    ← → arrows • space • +/− • 0 to reset
+                </p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -433,10 +757,10 @@
 
         // State
         let database = [];
-        let databaseChronological = []; // Sorted by datetime
-        let databaseTimeOfDay = [];     // Sorted by time of day (hour:minute)
-        let databaseTimeOfYear = [];    // Sorted by time of year (month-day)
-        let currentMode = 'chronological'; // 'chronological', 'timeOfDay', 'timeOfYear'
+        let databaseChronological = [];
+        let databaseTimeOfDay = [];
+        let databaseTimeOfYear = [];
+        let currentMode = 'chronological';
         let currentIndex = 0;
         let isPlaying = false;
         let playInterval = null;
@@ -454,6 +778,13 @@
         let lastPanX = 0;
         let lastPanY = 0;
 
+        // Composite image for performance (large bounding box of all images)
+        let compositeCanvas = null;
+        let compositeCtx = null;
+        let compositeReady = false;
+        let compositeOffsetX = 0;
+        let compositeOffsetY = 0;
+
         // DOM elements
         const canvas = document.getElementById('imageCanvas');
         const ctx = canvas.getContext('2d');
@@ -467,9 +798,10 @@
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const resetZoomBtn = document.getElementById('resetZoomBtn');
         const zoomInfo = document.getElementById('zoomInfo');
-        const currentDateEl = document.getElementById('currentDate');
-        const currentTimeOfDayEl = document.getElementById('currentTimeOfDay');
-        const currentTimeOfYearEl = document.getElementById('currentTimeOfYear');
+        const currentDateTimeEl = document.getElementById('currentDateTime');
+        const chronoValueEl = document.getElementById('chronoValue');
+        const todValueEl = document.getElementById('todValue');
+        const toyValueEl = document.getElementById('toyValue');
         const startDateEl = document.getElementById('startDate');
         const endDateEl = document.getElementById('endDate');
         const startTimeOfDayEl = document.getElementById('startTimeOfDay');
@@ -485,18 +817,26 @@
         const chronologicalContainer = document.getElementById('chronologicalContainer');
         const timeOfDayContainer = document.getElementById('timeOfDayContainer');
         const timeOfYearContainer = document.getElementById('timeOfYearContainer');
+        const panelToggle = document.getElementById('panelToggle');
+        const controlPanel = document.getElementById('controlPanel');
 
         // Set canvas size
         canvas.width = CANVAS_WIDTH;
         canvas.height = CANVAS_HEIGHT;
+
+        // Mobile panel toggle
+        panelToggle.addEventListener('click', () => {
+            controlPanel.classList.toggle('open');
+        });
 
         // Utility functions
         function formatDate(isoString) {
             if (!isoString) return 'Unknown';
             const date = new Date(isoString);
             return date.toLocaleDateString('en-US', { 
+                weekday: 'short',
                 year: 'numeric', 
-                month: 'short', 
+                month: 'long', 
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
@@ -507,9 +847,9 @@
             if (!isoString) return 'Unknown';
             const date = new Date(isoString);
             return date.toLocaleDateString('en-US', { 
-                year: 'numeric', 
                 month: 'short', 
-                day: 'numeric'
+                day: 'numeric',
+                year: 'numeric'
             });
         }
 
@@ -526,7 +866,7 @@
             if (!isoString) return 'Unknown';
             const date = new Date(isoString);
             return date.toLocaleDateString('en-US', { 
-                month: 'short',
+                month: 'long',
                 day: 'numeric'
             });
         }
@@ -572,13 +912,11 @@
             }
         }
 
-        // Similarity transformation functions (from make_database.py)
+        // Similarity transformation functions
         function computeSimilarityTransformation(srcPoints, dstPoints) {
-            // srcPoints and dstPoints are arrays of [x, y] pairs
             const src = srcPoints.map(p => ({x: p[0], y: p[1]}));
             const dst = dstPoints.map(p => ({x: p[0], y: p[1]}));
 
-            // Compute centroids
             const srcCenter = {
                 x: (src[0].x + src[1].x) / 2,
                 y: (src[0].y + src[1].y) / 2
@@ -588,7 +926,6 @@
                 y: (dst[0].y + dst[1].y) / 2
             };
 
-            // Center the points
             const srcCentered = src.map(p => ({
                 x: p.x - srcCenter.x,
                 y: p.y - srcCenter.y
@@ -598,7 +935,6 @@
                 y: p.y - dstCenter.y
             }));
 
-            // Compute scale
             const srcDist = Math.sqrt(
                 Math.pow(srcCentered[1].x - srcCentered[0].x, 2) +
                 Math.pow(srcCentered[1].y - srcCentered[0].y, 2)
@@ -610,7 +946,6 @@
 
             const scale = srcDist < 1e-10 ? 1.0 : dstDist / srcDist;
 
-            // Compute rotation angle
             const srcAngle = Math.atan2(
                 srcCentered[1].y - srcCentered[0].y,
                 srcCentered[1].x - srcCentered[0].x
@@ -621,7 +956,6 @@
             );
             const angle = dstAngle - srcAngle;
 
-            // Compute translation
             const cosA = Math.cos(angle);
             const sinA = Math.sin(angle);
 
@@ -638,75 +972,202 @@
             return { scale, angle, tx: translation.x, ty: translation.y };
         }
 
-        // Draw aligned image on canvas
+        // Create composite image with all images stacked (run once after loading)
+        function createCompositeImage() {
+            console.log('Creating large composite image with all stacked images...');
+            
+            // First pass: calculate bounding box of all transformed images
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            const transforms = [];
+            
+            for (let i = 0; i < database.length; i++) {
+                const entry = database[i];
+                const img = loadedImages[i];
+                
+                if (!img || !img.complete) continue;
+                
+                const srcPeaks = [
+                    [entry.higher_peak.x, entry.higher_peak.y],
+                    [entry.lower_peak.x, entry.lower_peak.y]
+                ];
+
+                const transform = computeSimilarityTransformation(srcPeaks, referencePeaks);
+                transforms.push({ transform, img, entry });
+                
+                // Calculate corners of transformed image
+                const corners = [
+                    { x: 0, y: 0 },
+                    { x: img.width, y: 0 },
+                    { x: img.width, y: img.height },
+                    { x: 0, y: img.height }
+                ];
+                
+                // Transform each corner
+                for (const corner of corners) {
+                    const cos_a = Math.cos(transform.angle);
+                    const sin_a = Math.sin(transform.angle);
+                    
+                    const transformedX = transform.scale * (cos_a * corner.x - sin_a * corner.y) + transform.tx;
+                    const transformedY = transform.scale * (sin_a * corner.x + cos_a * corner.y) + transform.ty;
+                    
+                    minX = Math.min(minX, transformedX);
+                    minY = Math.min(minY, transformedY);
+                    maxX = Math.max(maxX, transformedX);
+                    maxY = Math.max(maxY, transformedY);
+                }
+            }
+            
+            // Add padding
+            const padding = 100;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            const compositeWidth = Math.ceil(maxX - minX);
+            const compositeHeight = Math.ceil(maxY - minY);
+            
+            console.log(`Composite size: ${compositeWidth}x${compositeHeight} (bounding box of all images)`);
+            console.log(`Offset: (${minX}, ${minY})`);
+            
+            // Store offset for drawing
+            compositeOffsetX = minX;
+            compositeOffsetY = minY;
+            
+            // Create large offscreen canvas
+            compositeCanvas = document.createElement('canvas');
+            compositeCanvas.width = compositeWidth;
+            compositeCanvas.height = compositeHeight;
+            compositeCtx = compositeCanvas.getContext('2d');
+            
+            // Dark background
+            compositeCtx.fillStyle = '#2a2a2a';
+            compositeCtx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+            
+            // Draw all images at low opacity, adjusted for offset
+            compositeCtx.globalAlpha = 0.03;
+            
+            for (const { transform, img } of transforms) {
+                compositeCtx.save();
+                // Translate to account for bounding box offset
+                compositeCtx.translate(-minX, -minY);
+                compositeCtx.translate(transform.tx, transform.ty);
+                compositeCtx.rotate(transform.angle);
+                compositeCtx.scale(transform.scale, transform.scale);
+                compositeCtx.drawImage(img, 0, 0);
+                compositeCtx.restore();
+            }
+            
+            compositeCtx.globalAlpha = 1.0;
+            compositeReady = true;
+            
+            console.log('Composite image ready!');
+            console.log(`Individual image size: ~${database[0] ? loadedImages[0]?.width : '?'}x${database[0] ? loadedImages[0]?.height : '?'}`);
+            console.log(`Composite is ${Math.round(compositeWidth / (loadedImages[0]?.width || 1) * 100) / 100}x larger in width`);
+            console.log(`You can now pan/zoom to explore the full panorama!`);
+        }
+
+        // Function to download the composite image
+        function downloadComposite() {
+            if (!compositeCanvas) {
+                alert('Composite image not ready yet!');
+                return;
+            }
+            
+            try {
+                compositeCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = 'mountain_time_composite.png';
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                });
+            } catch (e) {
+                alert('Error downloading composite: ' + e.message);
+            }
+        }
+
+        // Draw aligned image on canvas - simple and clean
         function drawAlignedImage(index) {
             const db = getCurrentDatabase();
             if (index < 0 || index >= db.length) return;
 
-            const entry = db[index];
-            const imgIndex = database.findIndex(e => e.filepath === entry.filepath);
-            const img = loadedImages[imgIndex];
+            const currentEntry = db[index];
+            const currentImgIndex = database.findIndex(e => e.filepath === currentEntry.filepath);
+            const currentImg = loadedImages[currentImgIndex];
 
-            if (!img || !img.complete) {
-                ctx.fillStyle = '#f5f5f5';
+            if (!currentImg || !currentImg.complete) {
+                ctx.fillStyle = '#2a2a2a';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#666';
-                ctx.font = '20px sans-serif';
+                ctx.fillStyle = '#8b7355';
+                ctx.font = '16px Inter';
                 ctx.textAlign = 'center';
                 ctx.fillText('Loading image...', canvas.width / 2, canvas.height / 2);
                 return;
             }
 
-            // Get source peaks
-            const srcPeaks = [
-                [entry.higher_peak.x, entry.higher_peak.y],
-                [entry.lower_peak.x, entry.lower_peak.y]
-            ];
-
-            // Compute transformation
-            const transform = computeSimilarityTransformation(srcPeaks, referencePeaks);
-
             // Clear canvas
-            ctx.fillStyle = '#f5f5f5';
+            ctx.fillStyle = '#2a2a2a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Save the context state
-            ctx.save();
+            // Draw the composite background with zoom/pan and blur
+            if (compositeReady && compositeCanvas) {
+                ctx.save();
+                
+                // Apply subtle blur to background
+                ctx.filter = 'blur(2px)';
+                
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(zoomLevel, zoomLevel);
+                ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
+                ctx.translate(compositeOffsetX, compositeOffsetY);
+                ctx.drawImage(compositeCanvas, 0, 0);
+                
+                // Reset filter
+                ctx.filter = 'none';
+                ctx.restore();
+            }
 
-            // Apply zoom and pan FIRST (viewport transform)
+            // Draw current image on top - NO MASKING, just clean
+            const srcPeaks = [
+                [currentEntry.higher_peak.x, currentEntry.higher_peak.y],
+                [currentEntry.lower_peak.x, currentEntry.lower_peak.y]
+            ];
+
+            const transform = computeSimilarityTransformation(srcPeaks, referencePeaks);
+
+            ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(zoomLevel, zoomLevel);
             ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
-
-            // Then apply the alignment transformation
             ctx.translate(transform.tx, transform.ty);
             ctx.rotate(transform.angle);
             ctx.scale(transform.scale, transform.scale);
-            ctx.drawImage(img, 0, 0);
-            
+            ctx.drawImage(currentImg, 0, 0);
             ctx.restore();
 
-            // Draw peak markers if enabled (in viewport space, not image space)
+            // Draw peak markers
             if (showPeaks) {
                 ctx.save();
-                
-                // Apply only zoom and pan to markers
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.scale(zoomLevel, zoomLevel);
                 ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
                 
-                const radius = 8;
+                const radius = 6;
                 
-                // Higher peak (red)
-                ctx.strokeStyle = 'red';
-                ctx.lineWidth = 3;
+                // Higher peak
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.arc(referencePeaks[0][0], referencePeaks[0][1], radius, 0, 2 * Math.PI);
                 ctx.stroke();
 
-                // Lower peak (blue)
-                ctx.strokeStyle = 'blue';
-                ctx.lineWidth = 3;
+                // Lower peak
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.arc(referencePeaks[1][0], referencePeaks[1][1], radius, 0, 2 * Math.PI);
                 ctx.stroke();
@@ -714,7 +1175,6 @@
                 ctx.restore();
             }
 
-            // Update UI
             updateUI();
         }
 
@@ -722,30 +1182,25 @@
             const entry = getCurrentEntry();
             const db = getCurrentDatabase();
             
-            // Update all date displays
-            currentDateEl.textContent = formatDate(entry.datetime);
-            currentTimeOfDayEl.textContent = formatTimeOfDay(entry.datetime);
-            currentTimeOfYearEl.textContent = formatTimeOfYear(entry.datetime);
+            currentDateTimeEl.textContent = formatDate(entry.datetime);
+            chronoValueEl.textContent = formatDateShort(entry.datetime);
+            todValueEl.textContent = formatTimeOfDay(entry.datetime);
+            toyValueEl.textContent = formatTimeOfYear(entry.datetime);
             
-            // Update counter
-            imageCounterEl.textContent = `${currentIndex + 1} / ${db.length}`;
+            imageCounterEl.textContent = `${currentIndex + 1} of ${db.length}`;
             
-            // Update all sliders without triggering events
             updateSliderPositions();
             
-            // Update zoom info
             zoomInfo.textContent = `${Math.round(zoomLevel * 100)}%`;
         }
 
         function updateSliderPositions() {
             const entry = getCurrentEntry();
             
-            // Find position in each database
             const chronoIdx = databaseChronological.findIndex(e => e.filepath === entry.filepath);
             const todIdx = databaseTimeOfDay.findIndex(e => e.filepath === entry.filepath);
             const toyIdx = databaseTimeOfYear.findIndex(e => e.filepath === entry.filepath);
             
-            // Update sliders without triggering change events
             slider.value = chronoIdx;
             timeOfDaySlider.value = todIdx;
             timeOfYearSlider.value = toyIdx;
@@ -778,14 +1233,13 @@
             }
         }
 
-        // Zoom and Pan functions
         function zoomIn() {
             zoomLevel = Math.min(zoomLevel * 1.3, 5.0);
             drawAlignedImage(currentIndex);
         }
 
         function zoomOut() {
-            zoomLevel = Math.max(zoomLevel / 1.3, 0.5);
+            zoomLevel = Math.max(zoomLevel / 1.3, 0.1); // Allow zoom out to 10%
             drawAlignedImage(currentIndex);
         }
 
@@ -800,15 +1254,17 @@
             if (isPlaying) return;
             isPlaying = true;
             playBtn.textContent = '⏸ Pause';
+            playBtn.classList.remove('primary');
             playInterval = setInterval(() => {
                 nextImage();
-            }, 500); // 500ms per frame
+            }, 500);
         }
 
         function stopPlayback() {
             if (!isPlaying) return;
             isPlaying = false;
             playBtn.textContent = '▶ Play';
+            playBtn.classList.add('primary');
             if (playInterval) {
                 clearInterval(playInterval);
                 playInterval = null;
@@ -860,6 +1316,10 @@
             showPeaks = e.target.checked;
             drawAlignedImage(currentIndex);
         });
+
+        // Download composite button
+        const downloadCompositeBtn = document.getElementById('downloadCompositeBtn');
+        downloadCompositeBtn.addEventListener('click', downloadComposite);
 
         // Mouse wheel zoom
         canvas.addEventListener('wheel', (e) => {
@@ -926,7 +1386,7 @@
             }
         });
 
-        // Touch support for pan
+        // Touch support
         let touchStartX = 0;
         let touchStartY = 0;
         
@@ -961,7 +1421,6 @@
         // Load database and images
         async function initialize() {
             try {
-                // Load database
                 const response = await fetch(DATABASE_URL);
                 database = await response.json();
 
@@ -969,7 +1428,6 @@
                     throw new Error('No images in database');
                 }
 
-                // Create sorted databases
                 databaseChronological = [...database].sort((a, b) => {
                     return new Date(a.datetime) - new Date(b.datetime);
                 });
@@ -982,14 +1440,12 @@
                     return getTimeOfYearDays(a.datetime) - getTimeOfYearDays(b.datetime);
                 });
 
-                // Set up reference peaks (use first image as reference)
                 const referenceEntry = databaseChronological[0];
                 referencePeaks = [
                     [referenceEntry.higher_peak.x, referenceEntry.higher_peak.y],
                     [referenceEntry.lower_peak.x, referenceEntry.lower_peak.y]
                 ];
 
-                // Update UI elements
                 const numImages = database.length;
                 
                 slider.max = numImages - 1;
@@ -998,27 +1454,22 @@
                 
                 totalImagesEl.textContent = numImages;
                 
-                // Set chronological range
                 startDateEl.textContent = formatDateShort(databaseChronological[0].datetime);
                 endDateEl.textContent = formatDateShort(databaseChronological[numImages - 1].datetime);
                 
-                // Set time of day range
                 startTimeOfDayEl.textContent = formatTimeOfDay(databaseTimeOfDay[0].datetime);
                 endTimeOfDayEl.textContent = formatTimeOfDay(databaseTimeOfDay[numImages - 1].datetime);
                 
-                // Set time of year range
                 startTimeOfYearEl.textContent = formatTimeOfYear(databaseTimeOfYear[0].datetime);
                 endTimeOfYearEl.textContent = formatTimeOfYear(databaseTimeOfYear[numImages - 1].datetime);
                 
-                // Calculate date range
                 const firstDate = new Date(databaseChronological[0].datetime);
                 const lastDate = new Date(databaseChronological[numImages - 1].datetime);
                 const daysDiff = Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24));
                 dateRangeEl.textContent = `${daysDiff} days`;
 
-                // Load all images
                 const imagePromises = database.map((entry, index) => {
-                    return new Promise((resolve, reject) => {
+                    return new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => {
                             loadedImages[index] = img;
@@ -1026,7 +1477,7 @@
                         };
                         img.onerror = () => {
                             console.error(`Failed to load: ${entry.filepath}`);
-                            resolve(); // Continue even if one image fails
+                            resolve();
                         };
                         img.src = entry.filepath;
                     });
@@ -1034,25 +1485,23 @@
 
                 await Promise.all(imagePromises);
 
-                // Hide loading overlay
+                // Create the composite image with all stacked images
+                console.log('Creating composite...');
+                createCompositeImage();
+
                 loadingOverlay.classList.add('hidden');
 
-                // Start in chronological mode
                 setActiveMode('chronological');
                 currentIndex = 0;
                 
-                // Draw first image
                 drawAlignedImage(0);
 
                 console.log(`Loaded ${database.length} images successfully!`);
-                console.log(`Chronological: ${databaseChronological.length}`);
-                console.log(`Time of Day: ${databaseTimeOfDay.length}`);
-                console.log(`Time of Year: ${databaseTimeOfYear.length}`);
             } catch (error) {
                 console.error('Error initializing:', error);
                 loadingOverlay.innerHTML = `
-                    <p style="color: red; font-weight: bold;">Error loading images</p>
-                    <p style="margin-top: 10px;">${error.message}</p>
+                    <div class="spinner"></div>
+                    <p class="loading-text" style="color: #d97706;">Error: ${error.message}</p>
                 `;
             }
         }
@@ -1062,4 +1511,3 @@
     </script>
 </body>
 </html>
-
