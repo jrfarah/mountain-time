@@ -4,6 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mountain Time</title>
+    
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="Mountain Time">
+    <meta name="description" content="Interactive mountain time-lapse viewer. Explore aligned images across time of day and seasons.">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://josephfarah.github.io/mountain-time/">
+    <meta property="og:title" content="Mountain Time">
+    <meta property="og:description" content="Interactive mountain time-lapse viewer. Explore aligned images across time of day and seasons.">
+    <meta property="og:image" content="https://josephfarah.github.io/mountain-time/thumbnail.jpg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://josephfarah.github.io/mountain-time/">
+    <meta property="twitter:title" content="Mountain Time">
+    <meta property="twitter:description" content="Interactive mountain time-lapse viewer. Explore aligned images across time of day and seasons.">
+    <meta property="twitter:image" content="https://josephfarah.github.io/mountain-time/thumbnail.jpg">
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600&display=swap');
 
@@ -89,6 +108,30 @@
             font-size: 15px;
             font-weight: 400;
             letter-spacing: 0.5px;
+        }
+
+        .progress-container {
+            width: 300px;
+            height: 8px;
+            background: rgba(139, 115, 85, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #8b7355, #a68968);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            color: #8b7355;
+            font-size: 13px;
+            margin-top: 12px;
+            opacity: 0.8;
         }
 
         /* Side Control Panel */
@@ -621,6 +664,10 @@
             <div id="loadingOverlay" class="loading-overlay">
                 <div class="spinner"></div>
                 <p class="loading-text">Loading images...</p>
+                <div class="progress-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <p id="progressText" class="progress-text">0 / 0</p>
             </div>
         </div>
 
@@ -1638,15 +1685,32 @@
                 const daysDiff = Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24));
                 dateRangeEl.textContent = `${daysDiff} days`;
 
+                // Initialize progress tracking
+                let loadedCount = 0;
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
+                
+                const updateProgress = () => {
+                    const percent = Math.round((loadedCount / numImages) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `${loadedCount} / ${numImages}`;
+                };
+                
+                updateProgress();
+
                 const imagePromises = database.map((entry, index) => {
                     return new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => {
                             loadedImages[index] = img;
+                            loadedCount++;
+                            updateProgress();
                             resolve();
                         };
                         img.onerror = () => {
                             console.error(`Failed to load: ${entry.filepath}`);
+                            loadedCount++;
+                            updateProgress();
                             resolve();
                         };
                         img.src = entry.filepath;
