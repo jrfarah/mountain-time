@@ -494,19 +494,6 @@
     "refinement_confidence": null
   },
   {
-    "filepath": "./processed_photos/20241102_181818_IMG_2667.jpg",
-    "datetime": "2024-11-02T18:18:18",
-    "higher_peak": {
-      "x": 3382,
-      "y": 1491
-    },
-    "lower_peak": {
-      "x": 3185,
-      "y": 1552
-    },
-    "refinement_confidence": null
-  },
-  {
     "filepath": "./processed_photos/20241103_162751_IMG_2707.jpg",
     "datetime": "2024-11-03T16:27:51",
     "higher_peak": {
