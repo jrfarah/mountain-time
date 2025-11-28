@@ -734,17 +734,14 @@
                     <div class="toggle-container">
                         <span class="toggle-label">Show Alignment Peaks</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="showPeaksCheckbox" checked>
+                            <input type="checkbox" id="showPeaksCheckbox">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
                 </div>
 
-                <!-- Composite Download -->
-                <div class="section">
-                    <div class="section-title">Export</div>
-                    <button id="downloadCompositeBtn" style="width: 100%;">💾 Download Full Composite</button>
-                </div>
+
+
 
                 <!-- Statistics -->
                 <div class="section">
@@ -790,10 +787,11 @@
         let playInterval = null;
         let loadedImages = [];
         let referencePeaks = null;
-        let showPeaks = true;
+        let showPeaks = false;
+        let showPanelBackground = false;
         
         // Zoom and pan state
-        let zoomLevel = 1.0;
+        let zoomLevel = 0.35; // Start at 35% zoom to see full panorama
         let panX = 0;
         let panY = 0;
         let isPanning = false;
@@ -808,6 +806,10 @@
         let compositeReady = false;
         let compositeOffsetX = 0;
         let compositeOffsetY = 0;
+
+        // Throttle for panel background updates
+        let lastBackgroundUpdate = 0;
+        let backgroundUpdateThrottle = 100; // Update every 100ms max
 
         // DOM elements
         const canvas = document.getElementById('imageCanvas');
@@ -1114,8 +1116,23 @@
             }
         }
 
-        // Update control panel background with current image
-        function updatePanelBackground(img) {
+        // Update control panel background with current image (throttled)
+        function updatePanelBackground(img, force = false) {
+            // Skip if disabled
+            if (!showPanelBackground) {
+                controlPanel.style.backgroundImage = 'none';
+                return;
+            }
+            
+            const now = Date.now();
+            
+            // Throttle updates unless forced
+            if (!force && (now - lastBackgroundUpdate) < backgroundUpdateThrottle) {
+                return;
+            }
+            
+            lastBackgroundUpdate = now;
+            
             // Create a larger version so blur has detail to work with
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = 800;
@@ -1126,7 +1143,7 @@
             tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
             
             // Apply blur using canvas filter (this actually works!)
-            tempCtx.filter = 'blur(40px) brightness(1.5) saturate(1.2)';
+            tempCtx.filter = 'blur(100px) brightness(1.5) saturate(1.2)';
             tempCtx.drawImage(tempCanvas, 0, 0);
             
             try {
@@ -1193,67 +1210,106 @@
             const imgHeight = currentImg.height;
             
             // Calculate fade distance (10% from edges)
-            const fadeDistanceX = imgWidth * 0.10;
-            const fadeDistanceY = imgHeight * 0.10;
-            
-            // Create temporary canvas for the mask
+            const fadeDistanceX = imgWidth * 0.1;
+            const fadeDistanceY = imgHeight * 0.1;
+
+
+            // --- 1. Create a blurred version of the image ---
+            // We'll use a stronger blur than for the composite background
+            const maxBlurPx = 40;
+            const blurCanvas = document.createElement('canvas');
+            blurCanvas.width = imgWidth;
+            blurCanvas.height = imgHeight;
+            const blurCtx = blurCanvas.getContext('2d');
+            blurCtx.filter = `blur(${maxBlurPx}px)`;
+            blurCtx.drawImage(currentImg, 0, 0);
+            blurCtx.filter = 'none';
+
+            // --- 2. Create the mask canvas for alpha and blur blend ---
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = imgWidth;
             maskCanvas.height = imgHeight;
             const maskCtx = maskCanvas.getContext('2d');
-            
-            // Draw the alpha mask (white = opaque, transparent = fade out)
-            // We'll manually compute the alpha for each pixel based on distance from nearest edge
+
+            // Alpha + blur blend mask, per-pixel
             const imageData = maskCtx.createImageData(imgWidth, imgHeight);
             const data = imageData.data;
-            
+
+            // We'll store blend factor from 0 (no blur, fully sharp) to 1 (full blur, fully faded out)
             for (let y = 0; y < imgHeight; y++) {
                 for (let x = 0; x < imgWidth; x++) {
                     const idx = (y * imgWidth + x) * 4;
-                    
-                    // Calculate distance from nearest edge
+                    // Distances
                     const distFromLeft = x;
                     const distFromRight = imgWidth - x;
                     const distFromTop = y;
                     const distFromBottom = imgHeight - y;
-                    
                     const minDistX = Math.min(distFromLeft, distFromRight);
                     const minDistY = Math.min(distFromTop, distFromBottom);
-                    const minDist = Math.min(minDistX, minDistY);
-                    
-                    // Calculate alpha based on distance from edge
-                    let alpha = 1.0;
-                    if (minDistX < fadeDistanceX) {
-                        alpha = Math.min(alpha, minDistX / fadeDistanceX);
-                    }
-                    if (minDistY < fadeDistanceY) {
-                        alpha = Math.min(alpha, minDistY / fadeDistanceY);
-                    }
-                    
-                    // Set pixel to white with calculated alpha
-                    data[idx] = 255;     // R
-                    data[idx + 1] = 255; // G
-                    data[idx + 2] = 255; // B
-                    data[idx + 3] = Math.round(alpha * 255); // A
+                    // Fade/Blur factors run 1.0 (center) to 0 (at edge)
+                    const factorX = Math.max(0, Math.min(1, minDistX / fadeDistanceX));
+                    const factorY = Math.max(0, Math.min(1, minDistY / fadeDistanceY));
+                    const minFactor = Math.min(factorX, factorY);
+
+                    // alpha is the fade (0 at edge, 1 far from edge)
+                    const alpha = minFactor;
+                    // blurAmount is (1-alpha): maximum at edge, 0 in center
+                    const blurAmount = 1 - minFactor;
+
+                    // We'll store blurAmount in the red channel for now as a temporary hack
+                    // (We'll not use this mask directly, just for convenient per-pixel calculation)
+                    data[idx] = Math.round(blurAmount * 255);   // R: blur amount to blend later
+                    data[idx + 1] = 0;                         // G
+                    data[idx + 2] = 0;                         // B
+                    data[idx + 3] = Math.round(alpha * 255);   // A (final mask for fade)
                 }
             }
-            
             maskCtx.putImageData(imageData, 0, 0);
-            
-            // Create image canvas
+
+            // --- 3. Compose the final image in a temp canvas ---
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = imgWidth;
             tempCanvas.height = imgHeight;
             const tempCtx = tempCanvas.getContext('2d');
             
-            // Draw the image
-            tempCtx.drawImage(currentImg, 0, 0);
-            
-            // Apply the mask
-            tempCtx.globalCompositeOperation = 'destination-in';
-            tempCtx.drawImage(maskCanvas, 0, 0);
-            
-            // Draw the faded image to main canvas
+            // We need to blend the sharp and blurred image based on blurAmount per pixel AND alpha for fade.
+            // To do this, getImageData for both images and blend into tempCanvas.
+
+            // Draw both images to get their raw data
+            const sharpCtx = document.createElement('canvas').getContext('2d');
+            sharpCtx.canvas.width = imgWidth;
+            sharpCtx.canvas.height = imgHeight;
+            sharpCtx.drawImage(currentImg, 0, 0);
+            const sharpData = sharpCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+            const blurData = blurCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+
+            // We'll use the alpha and blur factor from the mask
+            const outImage = tempCtx.createImageData(imgWidth, imgHeight);
+            const outData = outImage.data;
+            const maskAlphaData = maskCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+
+            for (let i = 0; i < imgWidth * imgHeight; i++) {
+                const baseIdx = i * 4;
+                // blurAmount as fraction [0, 1]
+                const blurAmount = maskAlphaData[baseIdx] / 255;
+                // Alpha
+                const alpha = maskAlphaData[baseIdx + 3] / 255;
+
+                // Linear blend sharp/blurred
+                outData[baseIdx + 0] = Math.round(
+                    sharpData[baseIdx + 0] * (1 - blurAmount) + blurData[baseIdx + 0] * blurAmount
+                );
+                outData[baseIdx + 1] = Math.round(
+                    sharpData[baseIdx + 1] * (1 - blurAmount) + blurData[baseIdx + 1] * blurAmount
+                );
+                outData[baseIdx + 2] = Math.round(
+                    sharpData[baseIdx + 2] * (1 - blurAmount) + blurData[baseIdx + 2] * blurAmount
+                );
+                outData[baseIdx + 3] = Math.round(alpha * 255);
+            }
+            tempCtx.putImageData(outImage, 0, 0);
+
+            // --- 4. Draw the result to the main canvas with transform ---
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(zoomLevel, zoomLevel);
@@ -1263,6 +1319,7 @@
             ctx.scale(transform.scale, transform.scale);
             ctx.drawImage(tempCanvas, 0, 0);
             ctx.restore();
+
 
             // Draw peak markers
             if (showPeaks) {
@@ -1431,10 +1488,6 @@
             showPeaks = e.target.checked;
             drawAlignedImage(currentIndex);
         });
-
-        // Download composite button
-        const downloadCompositeBtn = document.getElementById('downloadCompositeBtn');
-        downloadCompositeBtn.addEventListener('click', downloadComposite);
 
         // Mouse wheel zoom
         canvas.addEventListener('wheel', (e) => {
@@ -1608,6 +1661,19 @@
 
                 setActiveMode('chronological');
                 currentIndex = 0;
+                
+                // Set default zoom to 35% and center on alignment points
+                zoomLevel = 0.35;
+                
+                // Calculate pan offset to center the reference peaks
+                // Reference peaks are already at a specific position, we want them centered in the canvas
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const peakCenterX = (referencePeaks[0][0] + referencePeaks[1][0]) / 2;
+                const peakCenterY = (referencePeaks[0][1] + referencePeaks[1][1]) / 2;
+                
+                panX = centerX - peakCenterX;
+                panY = centerY - peakCenterY;
                 
                 drawAlignedImage(0);
 
