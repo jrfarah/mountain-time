@@ -809,7 +809,10 @@
 
         // Throttle for panel background updates
         let lastBackgroundUpdate = 0;
-        let backgroundUpdateThrottle = 100; // Update every 100ms max
+        let backgroundUpdateThrottle = 200; // Update every 200ms max (less frequent for better performance)
+        
+        // Cache for processed images with fade to avoid recomputing
+        const processedImageCache = new Map();
 
         // DOM elements
         const canvas = document.getElementById('imageCanvas');
@@ -1133,25 +1136,114 @@
             
             lastBackgroundUpdate = now;
             
-            // Create a larger version so blur has detail to work with
+            // Create a smaller, lower quality version for better performance
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 800;
-            tempCanvas.height = 600;
+            tempCanvas.width = 600;  // Reduced from 800
+            tempCanvas.height = 450; // Reduced from 600
             const tempCtx = tempCanvas.getContext('2d');
             
             // Draw scaled image
             tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
             
             // Apply blur using canvas filter (this actually works!)
-            tempCtx.filter = 'blur(100px) brightness(1.5) saturate(1.2)';
+            tempCtx.filter = 'blur(80px) brightness(1.5) saturate(1.2)';  // Slightly less blur for performance
             tempCtx.drawImage(tempCanvas, 0, 0);
             
             try {
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.7);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.5);  // Lower quality (0.5 instead of 0.7)
                 controlPanel.style.backgroundImage = `url(${dataUrl})`;
             } catch (e) {
                 console.warn('Could not set panel background:', e);
             }
+        }
+
+        // Create an image with edge fade effect - called once per image and cached
+        function createImageWithEdgeFade(img) {
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            
+            // Calculate fade distance (10% from edges)
+            const fadeDistanceX = imgWidth * 0.1;
+            const fadeDistanceY = imgHeight * 0.1;
+
+            // Create a blurred version of the image
+            const maxBlurPx = 40;
+            const blurCanvas = document.createElement('canvas');
+            blurCanvas.width = imgWidth;
+            blurCanvas.height = imgHeight;
+            const blurCtx = blurCanvas.getContext('2d');
+            blurCtx.filter = `blur(${maxBlurPx}px)`;
+            blurCtx.drawImage(img, 0, 0);
+            blurCtx.filter = 'none';
+
+            // Create the mask canvas for alpha and blur blend
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = imgWidth;
+            maskCanvas.height = imgHeight;
+            const maskCtx = maskCanvas.getContext('2d');
+
+            // Alpha + blur blend mask, per-pixel
+            const imageData = maskCtx.createImageData(imgWidth, imgHeight);
+            const data = imageData.data;
+
+            // Pre-compute edge distances for performance
+            for (let y = 0; y < imgHeight; y++) {
+                for (let x = 0; x < imgWidth; x++) {
+                    const idx = (y * imgWidth + x) * 4;
+                    
+                    // Distances from edges
+                    const minDistX = Math.min(x, imgWidth - x);
+                    const minDistY = Math.min(y, imgHeight - y);
+                    
+                    // Fade/Blur factors (1.0 at center, 0 at edge)
+                    const factorX = Math.max(0, Math.min(1, minDistX / fadeDistanceX));
+                    const factorY = Math.max(0, Math.min(1, minDistY / fadeDistanceY));
+                    const minFactor = Math.min(factorX, factorY);
+
+                    // Store blur amount and alpha
+                    data[idx] = Math.round((1 - minFactor) * 255);  // R: blur amount
+                    data[idx + 1] = 0;  // G
+                    data[idx + 2] = 0;  // B
+                    data[idx + 3] = Math.round(minFactor * 255);  // A: alpha
+                }
+            }
+            maskCtx.putImageData(imageData, 0, 0);
+
+            // Compose the final image
+            const resultCanvas = document.createElement('canvas');
+            resultCanvas.width = imgWidth;
+            resultCanvas.height = imgHeight;
+            const resultCtx = resultCanvas.getContext('2d');
+            
+            // Get pixel data from both images
+            const sharpCtx = document.createElement('canvas').getContext('2d');
+            sharpCtx.canvas.width = imgWidth;
+            sharpCtx.canvas.height = imgHeight;
+            sharpCtx.drawImage(img, 0, 0);
+            const sharpData = sharpCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+            const blurData = blurCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+
+            // Blend based on mask
+            const outImage = resultCtx.createImageData(imgWidth, imgHeight);
+            const outData = outImage.data;
+            const maskAlphaData = maskCtx.getImageData(0, 0, imgWidth, imgHeight).data;
+
+            const totalPixels = imgWidth * imgHeight;
+            for (let i = 0; i < totalPixels; i++) {
+                const baseIdx = i * 4;
+                const blurAmount = maskAlphaData[baseIdx] / 255;
+                const alpha = maskAlphaData[baseIdx + 3] / 255;
+                const sharpAmount = 1 - blurAmount;
+
+                // Blend sharp and blurred
+                outData[baseIdx] = sharpData[baseIdx] * sharpAmount + blurData[baseIdx] * blurAmount;
+                outData[baseIdx + 1] = sharpData[baseIdx + 1] * sharpAmount + blurData[baseIdx + 1] * blurAmount;
+                outData[baseIdx + 2] = sharpData[baseIdx + 2] * sharpAmount + blurData[baseIdx + 2] * blurAmount;
+                outData[baseIdx + 3] = alpha * 255;
+            }
+            resultCtx.putImageData(outImage, 0, 0);
+            
+            return resultCanvas;
         }
 
         // Draw aligned image on canvas - simple and clean with soft edge fade
@@ -1209,107 +1301,17 @@
             const imgWidth = currentImg.width;
             const imgHeight = currentImg.height;
             
-            // Calculate fade distance (10% from edges)
-            const fadeDistanceX = imgWidth * 0.1;
-            const fadeDistanceY = imgHeight * 0.1;
-
-
-            // --- 1. Create a blurred version of the image ---
-            // We'll use a stronger blur than for the composite background
-            const maxBlurPx = 40;
-            const blurCanvas = document.createElement('canvas');
-            blurCanvas.width = imgWidth;
-            blurCanvas.height = imgHeight;
-            const blurCtx = blurCanvas.getContext('2d');
-            blurCtx.filter = `blur(${maxBlurPx}px)`;
-            blurCtx.drawImage(currentImg, 0, 0);
-            blurCtx.filter = 'none';
-
-            // --- 2. Create the mask canvas for alpha and blur blend ---
-            const maskCanvas = document.createElement('canvas');
-            maskCanvas.width = imgWidth;
-            maskCanvas.height = imgHeight;
-            const maskCtx = maskCanvas.getContext('2d');
-
-            // Alpha + blur blend mask, per-pixel
-            const imageData = maskCtx.createImageData(imgWidth, imgHeight);
-            const data = imageData.data;
-
-            // We'll store blend factor from 0 (no blur, fully sharp) to 1 (full blur, fully faded out)
-            for (let y = 0; y < imgHeight; y++) {
-                for (let x = 0; x < imgWidth; x++) {
-                    const idx = (y * imgWidth + x) * 4;
-                    // Distances
-                    const distFromLeft = x;
-                    const distFromRight = imgWidth - x;
-                    const distFromTop = y;
-                    const distFromBottom = imgHeight - y;
-                    const minDistX = Math.min(distFromLeft, distFromRight);
-                    const minDistY = Math.min(distFromTop, distFromBottom);
-                    // Fade/Blur factors run 1.0 (center) to 0 (at edge)
-                    const factorX = Math.max(0, Math.min(1, minDistX / fadeDistanceX));
-                    const factorY = Math.max(0, Math.min(1, minDistY / fadeDistanceY));
-                    const minFactor = Math.min(factorX, factorY);
-
-                    // alpha is the fade (0 at edge, 1 far from edge)
-                    const alpha = minFactor;
-                    // blurAmount is (1-alpha): maximum at edge, 0 in center
-                    const blurAmount = 1 - minFactor;
-
-                    // We'll store blurAmount in the red channel for now as a temporary hack
-                    // (We'll not use this mask directly, just for convenient per-pixel calculation)
-                    data[idx] = Math.round(blurAmount * 255);   // R: blur amount to blend later
-                    data[idx + 1] = 0;                         // G
-                    data[idx + 2] = 0;                         // B
-                    data[idx + 3] = Math.round(alpha * 255);   // A (final mask for fade)
-                }
-            }
-            maskCtx.putImageData(imageData, 0, 0);
-
-            // --- 3. Compose the final image in a temp canvas ---
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = imgWidth;
-            tempCanvas.height = imgHeight;
-            const tempCtx = tempCanvas.getContext('2d');
+            // Check cache for processed image with fade
+            const cacheKey = currentEntry.filepath;
+            let processedImage = processedImageCache.get(cacheKey);
             
-            // We need to blend the sharp and blurred image based on blurAmount per pixel AND alpha for fade.
-            // To do this, getImageData for both images and blend into tempCanvas.
-
-            // Draw both images to get their raw data
-            const sharpCtx = document.createElement('canvas').getContext('2d');
-            sharpCtx.canvas.width = imgWidth;
-            sharpCtx.canvas.height = imgHeight;
-            sharpCtx.drawImage(currentImg, 0, 0);
-            const sharpData = sharpCtx.getImageData(0, 0, imgWidth, imgHeight).data;
-            const blurData = blurCtx.getImageData(0, 0, imgWidth, imgHeight).data;
-
-            // We'll use the alpha and blur factor from the mask
-            const outImage = tempCtx.createImageData(imgWidth, imgHeight);
-            const outData = outImage.data;
-            const maskAlphaData = maskCtx.getImageData(0, 0, imgWidth, imgHeight).data;
-
-            for (let i = 0; i < imgWidth * imgHeight; i++) {
-                const baseIdx = i * 4;
-                // blurAmount as fraction [0, 1]
-                const blurAmount = maskAlphaData[baseIdx] / 255;
-                // Alpha
-                const alpha = maskAlphaData[baseIdx + 3] / 255;
-
-                // Linear blend sharp/blurred
-                outData[baseIdx + 0] = Math.round(
-                    sharpData[baseIdx + 0] * (1 - blurAmount) + blurData[baseIdx + 0] * blurAmount
-                );
-                outData[baseIdx + 1] = Math.round(
-                    sharpData[baseIdx + 1] * (1 - blurAmount) + blurData[baseIdx + 1] * blurAmount
-                );
-                outData[baseIdx + 2] = Math.round(
-                    sharpData[baseIdx + 2] * (1 - blurAmount) + blurData[baseIdx + 2] * blurAmount
-                );
-                outData[baseIdx + 3] = Math.round(alpha * 255);
+            if (!processedImage) {
+                // Process image with edge fade only once and cache it
+                processedImage = createImageWithEdgeFade(currentImg);
+                processedImageCache.set(cacheKey, processedImage);
             }
-            tempCtx.putImageData(outImage, 0, 0);
 
-            // --- 4. Draw the result to the main canvas with transform ---
+            // Draw the processed image with transform
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(zoomLevel, zoomLevel);
@@ -1317,7 +1319,7 @@
             ctx.translate(transform.tx, transform.ty);
             ctx.rotate(transform.angle);
             ctx.scale(transform.scale, transform.scale);
-            ctx.drawImage(tempCanvas, 0, 0);
+            ctx.drawImage(processedImage, 0, 0);
             ctx.restore();
 
 
