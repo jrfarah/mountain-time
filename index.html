@@ -230,6 +230,16 @@
             opacity: 0.6;
         }
 
+        .loading-indicator .progress-container {
+            width: 250px;
+            margin-top: 8px;
+        }
+
+        .loading-indicator .progress-text {
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
         @media (max-width: 768px) {
             .intro-sentence {
                 font-size: 24px;
@@ -775,6 +785,10 @@
         <div class="loading-indicator" id="loadingIndicator">
             <div class="spinner"></div>
             <p class="loading-text">Loading images...</p>
+            <div class="progress-container">
+                <div id="introProgressBar" class="progress-bar"></div>
+            </div>
+            <p id="introProgressText" class="progress-text">0 / 0</p>
         </div>
         
         <button id="skipButton" class="skip-button">Enter →</button>
@@ -1812,11 +1826,15 @@
                 let loadedCount = 0;
                 const progressBar = document.getElementById('progressBar');
                 const progressText = document.getElementById('progressText');
+                const introProgressBar = document.getElementById('introProgressBar');
+                const introProgressText = document.getElementById('introProgressText');
                 
                 const updateProgress = () => {
                     const percent = Math.round((loadedCount / numImages) * 100);
                     progressBar.style.width = `${percent}%`;
                     progressText.textContent = `${loadedCount} / ${numImages}`;
+                    introProgressBar.style.width = `${percent}%`;
+                    introProgressText.textContent = `${loadedCount} / ${numImages}`;
                 };
                 
                 updateProgress();
@@ -1846,6 +1864,7 @@
                 const loadingTextEl = document.querySelector('#loadingIndicator .loading-text');
                 loadingTextEl.textContent = 'Processing images...';
                 progressText.textContent = 'Preparing for smooth playback';
+                introProgressText.textContent = 'Preparing for smooth playback';
 
                 // Preprocess all images with edge fade for smooth playback
                 console.log('Preprocessing images with edge fade...');
@@ -1868,6 +1887,8 @@
                     const percent = Math.round((processedCount / numImages) * 100);
                     progressBar.style.width = `${percent}%`;
                     progressText.textContent = `${processedCount} / ${numImages}`;
+                    introProgressBar.style.width = `${percent}%`;
+                    introProgressText.textContent = `${processedCount} / ${numImages}`;
                     
                     // Allow UI to update every 5 images
                     if (processedCount % 5 === 0) {
