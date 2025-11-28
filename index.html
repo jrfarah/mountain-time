@@ -134,6 +134,113 @@
             opacity: 0.8;
         }
 
+        /* Intro Overlay */
+        .intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        .intro-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .intro-content {
+            max-width: 800px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .intro-sentence {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            line-height: 1.6;
+            color: #e8e6e3;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1.2s ease, transform 1.2s ease;
+        }
+
+        .intro-sentence.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .skip-button {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 32px;
+            background: rgba(139, 115, 85, 0.15);
+            color: #8b7355;
+            border: 2px solid rgba(139, 115, 85, 0.3);
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .skip-button.visible {
+            opacity: 1;
+        }
+
+        .skip-button:hover {
+            background: rgba(139, 115, 85, 0.25);
+            border-color: rgba(139, 115, 85, 0.5);
+            transform: translateX(-50%) translateY(-4px);
+            box-shadow: 0 10px 30px rgba(139, 115, 85, 0.2);
+        }
+
+        .loading-indicator {
+            position: absolute;
+            bottom: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .loading-indicator .spinner {
+            width: 24px;
+            height: 24px;
+            border-width: 2px;
+        }
+
+        .loading-indicator .loading-text {
+            font-size: 13px;
+            opacity: 0.6;
+        }
+
+        @media (max-width: 768px) {
+            .intro-sentence {
+                font-size: 24px;
+                line-height: 1.5;
+            }
+
+            .intro-content {
+                padding: 20px;
+            }
+        }
+
         /* Side Control Panel */
         .control-panel {
             width: 420px;
@@ -657,6 +764,22 @@
     </style>
 </head>
 <body>
+    <!-- Intro Overlay -->
+    <div id="introOverlay" class="intro-overlay">
+        <div class="intro-content">
+            <p class="intro-sentence" id="sentence1">Every day, I walk my dog by the same mountain.</p>
+            <p class="intro-sentence" id="sentence2">And every day, I take a picture.</p>
+            <p class="intro-sentence" id="sentence3">Here is the mountain from my perspective over the last 3 years.</p>
+        </div>
+        
+        <div class="loading-indicator" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p class="loading-text">Loading images...</p>
+        </div>
+        
+        <button id="skipButton" class="skip-button">Enter →</button>
+    </div>
+
     <div class="app-container">
         <!-- Canvas Area -->
         <div class="canvas-area">
@@ -1724,6 +1847,10 @@
                 createCompositeImage();
 
                 loadingOverlay.classList.add('hidden');
+                
+                // Show skip button on intro overlay
+                imagesLoaded = true;
+                showSkipButton();
 
                 setActiveMode('chronological');
                 currentIndex = 0;
@@ -1753,6 +1880,55 @@
             }
         }
 
+        // Intro animation
+        let imagesLoaded = false;
+        
+        function startIntroAnimation() {
+            const sentence1 = document.getElementById('sentence1');
+            const sentence2 = document.getElementById('sentence2');
+            const sentence3 = document.getElementById('sentence3');
+            
+            // Fade in sentences one at a time
+            setTimeout(() => {
+                sentence1.classList.add('visible');
+            }, 500);
+            
+            setTimeout(() => {
+                sentence2.classList.add('visible');
+            }, 2800);
+            
+            setTimeout(() => {
+                sentence3.classList.add('visible');
+            }, 5100);
+        }
+        
+        function showSkipButton() {
+            const skipButton = document.getElementById('skipButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            // Hide loading indicator
+            loadingIndicator.style.opacity = '0';
+            setTimeout(() => {
+                loadingIndicator.style.display = 'none';
+            }, 400);
+            
+            // Show skip button
+            setTimeout(() => {
+                skipButton.classList.add('visible');
+            }, 500);
+        }
+        
+        function hideIntro() {
+            const introOverlay = document.getElementById('introOverlay');
+            introOverlay.classList.add('hidden');
+        }
+        
+        // Skip button handler
+        document.getElementById('skipButton').addEventListener('click', hideIntro);
+        
+        // Start intro animation immediately
+        startIntroAnimation();
+        
         // Start initialization
         initialize();
     </script>
