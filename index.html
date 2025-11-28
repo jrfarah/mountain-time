@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mountain Time - Interactive Peak Alignment Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .viewer-section {
+            padding: 40px;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #f5f5f5;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        #imageCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: grab;
+        }
+
+        #imageCanvas:active {
+            cursor: grabbing;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .slider-container {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .slider-container.active {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .slider-title {
+            font-size: 0.9em;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .current-date {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .zoom-controls button {
+            min-width: 80px;
+            flex: 0;
+        }
+
+        .zoom-info {
+            padding: 8px 16px;
+            background: white;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #667eea;
+            border: 2px solid #e9ecef;
+        }
+
+        button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .info-label {
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-container label {
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        footer {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .viewer-section {
+                padding: 20px;
+            }
+            
+            .controls {
+                padding: 15px;
+            }
+            
+            button {
+                min-width: 100px;
+                font-size: 14px;
+                padding: 10px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏔️ Mountain Time</h1>
+            <p class="subtitle">Interactive Peak Alignment Viewer</p>
+        </header>
+
+        <div class="viewer-section">
+            <div class="canvas-container">
+                <canvas id="imageCanvas"></canvas>
+                <div id="loadingOverlay" class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Loading images...</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="slider-container active" id="chronologicalContainer">
+                    <div class="slider-title">📅 Chronological Timeline</div>
+                    <div class="slider-label">
+                        <span>Ordered by Date & Time</span>
+                        <span class="current-date" id="currentDate">-</span>
+                    </div>
+                    <input type="range" id="imageSlider" class="slider" min="0" max="0" value="0" step="1">
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
+                        <span id="startDate">-</span>
+                        <span id="endDate">-</span>
+                    </div>
+                </div>
+
+                <div class="slider-container" id="timeOfDayContainer">
+                    <div class="slider-title">🌅 Time of Day</div>
+                    <div class="slider-label">
+                        <span>Ordered by Hour:Minute</span>
+                        <span class="current-date" id="currentTimeOfDay">-</span>
+                    </div>
+                    <input type="range" id="timeOfDaySlider" class="slider" min="0" max="0" value="0" step="1">
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
+                        <span id="startTimeOfDay">-</span>
+                        <span id="endTimeOfDay">-</span>
+                    </div>
+                </div>
+
+                <div class="slider-container" id="timeOfYearContainer">
+                    <div class="slider-title">🍂 Time of Year</div>
+                    <div class="slider-label">
+                        <span>Ordered by Month-Day</span>
+                        <span class="current-date" id="currentTimeOfYear">-</span>
+                    </div>
+                    <input type="range" id="timeOfYearSlider" class="slider" min="0" max="0" value="0" step="1">
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.85em; color: #666;">
+                        <span id="startTimeOfYear">-</span>
+                        <span id="endTimeOfYear">-</span>
+                    </div>
+                </div>
+
+                <div class="zoom-controls">
+                    <button id="zoomInBtn">🔍 Zoom In</button>
+                    <button id="zoomOutBtn">🔍 Zoom Out</button>
+                    <button id="resetZoomBtn">↺ Reset View</button>
+                    <div class="zoom-info" id="zoomInfo">100%</div>
+                </div>
+
+                <div class="button-group">
+                    <button id="prevBtn">← Previous</button>
+                    <button id="playBtn">▶ Play</button>
+                    <button id="nextBtn">Next →</button>
+                </div>
+
+                <div class="checkbox-container">
+                    <input type="checkbox" id="showPeaksCheckbox" checked>
+                    <label for="showPeaksCheckbox">Show alignment peaks</label>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-card">
+                        <div class="info-label">Current Image</div>
+                        <div class="info-value" id="imageCounter">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Total Images</div>
+                        <div class="info-value" id="totalImages">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Date Range</div>
+                        <div class="info-value" id="dateRange">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Active View</div>
+                        <div class="info-value" id="activeView">Chronological</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>Aligned using peak-based similarity transformation</strong></p>
+            <p style="margin-top: 10px;">
+                <strong>Controls:</strong> Arrow keys to navigate | Space to play/pause | 
+                Mouse wheel to zoom | Click & drag to pan | +/- to zoom | 0 to reset view
+            </p>
+            <p style="margin-top: 5px; font-size: 0.85em; opacity: 0.8;">
+                Use the three timeline scrubbers to explore images by chronological order, time of day, or time of year
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Configuration
+        const DATABASE_URL = 'peaks_database.json';
+        const CANVAS_WIDTH = 1200;
+        const CANVAS_HEIGHT = 900;
+
+        // State
+        let database = [];
+        let databaseChronological = []; // Sorted by datetime
+        let databaseTimeOfDay = [];     // Sorted by time of day (hour:minute)
+        let databaseTimeOfYear = [];    // Sorted by time of year (month-day)
+        let currentMode = 'chronological'; // 'chronological', 'timeOfDay', 'timeOfYear'
+        let currentIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let loadedImages = [];
+        let referencePeaks = null;
+        let showPeaks = true;
+        
+        // Zoom and pan state
+        let zoomLevel = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let lastPanX = 0;
+        let lastPanY = 0;
+
+        // DOM elements
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('imageSlider');
+        const timeOfDaySlider = document.getElementById('timeOfDaySlider');
+        const timeOfYearSlider = document.getElementById('timeOfYearSlider');
+        const playBtn = document.getElementById('playBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        const zoomInfo = document.getElementById('zoomInfo');
+        const currentDateEl = document.getElementById('currentDate');
+        const currentTimeOfDayEl = document.getElementById('currentTimeOfDay');
+        const currentTimeOfYearEl = document.getElementById('currentTimeOfYear');
+        const startDateEl = document.getElementById('startDate');
+        const endDateEl = document.getElementById('endDate');
+        const startTimeOfDayEl = document.getElementById('startTimeOfDay');
+        const endTimeOfDayEl = document.getElementById('endTimeOfDay');
+        const startTimeOfYearEl = document.getElementById('startTimeOfYear');
+        const endTimeOfYearEl = document.getElementById('endTimeOfYear');
+        const imageCounterEl = document.getElementById('imageCounter');
+        const totalImagesEl = document.getElementById('totalImages');
+        const dateRangeEl = document.getElementById('dateRange');
+        const activeViewEl = document.getElementById('activeView');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const showPeaksCheckbox = document.getElementById('showPeaksCheckbox');
+        const chronologicalContainer = document.getElementById('chronologicalContainer');
+        const timeOfDayContainer = document.getElementById('timeOfDayContainer');
+        const timeOfYearContainer = document.getElementById('timeOfYearContainer');
+
+        // Set canvas size
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Utility functions
+        function formatDate(isoString) {
+            if (!isoString) return 'Unknown';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatDateShort(isoString) {
+            if (!isoString) return 'Unknown';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric'
+            });
+        }
+
+        function formatTimeOfDay(isoString) {
+            if (!isoString) return 'Unknown';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('en-US', { 
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatTimeOfYear(isoString) {
+            if (!isoString) return 'Unknown';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function getTimeOfDayMinutes(isoString) {
+            const date = new Date(isoString);
+            return date.getHours() * 60 + date.getMinutes();
+        }
+
+        function getTimeOfYearDays(isoString) {
+            const date = new Date(isoString);
+            const start = new Date(date.getFullYear(), 0, 0);
+            const diff = date - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            return Math.floor(diff / oneDay);
+        }
+
+        function getCurrentDatabase() {
+            if (currentMode === 'timeOfDay') return databaseTimeOfDay;
+            if (currentMode === 'timeOfYear') return databaseTimeOfYear;
+            return databaseChronological;
+        }
+
+        function getCurrentEntry() {
+            return getCurrentDatabase()[currentIndex];
+        }
+
+        function setActiveMode(mode) {
+            currentMode = mode;
+            chronologicalContainer.classList.remove('active');
+            timeOfDayContainer.classList.remove('active');
+            timeOfYearContainer.classList.remove('active');
+            
+            if (mode === 'chronological') {
+                chronologicalContainer.classList.add('active');
+                activeViewEl.textContent = 'Chronological';
+            } else if (mode === 'timeOfDay') {
+                timeOfDayContainer.classList.add('active');
+                activeViewEl.textContent = 'Time of Day';
+            } else if (mode === 'timeOfYear') {
+                timeOfYearContainer.classList.add('active');
+                activeViewEl.textContent = 'Time of Year';
+            }
+        }
+
+        // Similarity transformation functions (from make_database.py)
+        function computeSimilarityTransformation(srcPoints, dstPoints) {
+            // srcPoints and dstPoints are arrays of [x, y] pairs
+            const src = srcPoints.map(p => ({x: p[0], y: p[1]}));
+            const dst = dstPoints.map(p => ({x: p[0], y: p[1]}));
+
+            // Compute centroids
+            const srcCenter = {
+                x: (src[0].x + src[1].x) / 2,
+                y: (src[0].y + src[1].y) / 2
+            };
+            const dstCenter = {
+                x: (dst[0].x + dst[1].x) / 2,
+                y: (dst[0].y + dst[1].y) / 2
+            };
+
+            // Center the points
+            const srcCentered = src.map(p => ({
+                x: p.x - srcCenter.x,
+                y: p.y - srcCenter.y
+            }));
+            const dstCentered = dst.map(p => ({
+                x: p.x - dstCenter.x,
+                y: p.y - dstCenter.y
+            }));
+
+            // Compute scale
+            const srcDist = Math.sqrt(
+                Math.pow(srcCentered[1].x - srcCentered[0].x, 2) +
+                Math.pow(srcCentered[1].y - srcCentered[0].y, 2)
+            );
+            const dstDist = Math.sqrt(
+                Math.pow(dstCentered[1].x - dstCentered[0].x, 2) +
+                Math.pow(dstCentered[1].y - dstCentered[0].y, 2)
+            );
+
+            const scale = srcDist < 1e-10 ? 1.0 : dstDist / srcDist;
+
+            // Compute rotation angle
+            const srcAngle = Math.atan2(
+                srcCentered[1].y - srcCentered[0].y,
+                srcCentered[1].x - srcCentered[0].x
+            );
+            const dstAngle = Math.atan2(
+                dstCentered[1].y - dstCentered[0].y,
+                dstCentered[1].x - dstCentered[0].x
+            );
+            const angle = dstAngle - srcAngle;
+
+            // Compute translation
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+
+            const srcCenterTransformed = {
+                x: scale * (cosA * srcCenter.x - sinA * srcCenter.y),
+                y: scale * (sinA * srcCenter.x + cosA * srcCenter.y)
+            };
+
+            const translation = {
+                x: dstCenter.x - srcCenterTransformed.x,
+                y: dstCenter.y - srcCenterTransformed.y
+            };
+
+            return { scale, angle, tx: translation.x, ty: translation.y };
+        }
+
+        // Draw aligned image on canvas
+        function drawAlignedImage(index) {
+            const db = getCurrentDatabase();
+            if (index < 0 || index >= db.length) return;
+
+            const entry = db[index];
+            const imgIndex = database.findIndex(e => e.filepath === entry.filepath);
+            const img = loadedImages[imgIndex];
+
+            if (!img || !img.complete) {
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#666';
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading image...', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Get source peaks
+            const srcPeaks = [
+                [entry.higher_peak.x, entry.higher_peak.y],
+                [entry.lower_peak.x, entry.lower_peak.y]
+            ];
+
+            // Compute transformation
+            const transform = computeSimilarityTransformation(srcPeaks, referencePeaks);
+
+            // Clear canvas
+            ctx.fillStyle = '#f5f5f5';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Save the context state
+            ctx.save();
+
+            // Apply zoom and pan FIRST (viewport transform)
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(zoomLevel, zoomLevel);
+            ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
+
+            // Then apply the alignment transformation
+            ctx.translate(transform.tx, transform.ty);
+            ctx.rotate(transform.angle);
+            ctx.scale(transform.scale, transform.scale);
+            ctx.drawImage(img, 0, 0);
+            
+            ctx.restore();
+
+            // Draw peak markers if enabled (in viewport space, not image space)
+            if (showPeaks) {
+                ctx.save();
+                
+                // Apply only zoom and pan to markers
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(zoomLevel, zoomLevel);
+                ctx.translate(-canvas.width / 2 + panX, -canvas.height / 2 + panY);
+                
+                const radius = 8;
+                
+                // Higher peak (red)
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(referencePeaks[0][0], referencePeaks[0][1], radius, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                // Lower peak (blue)
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(referencePeaks[1][0], referencePeaks[1][1], radius, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+
+            // Update UI
+            updateUI();
+        }
+
+        function updateUI() {
+            const entry = getCurrentEntry();
+            const db = getCurrentDatabase();
+            
+            // Update all date displays
+            currentDateEl.textContent = formatDate(entry.datetime);
+            currentTimeOfDayEl.textContent = formatTimeOfDay(entry.datetime);
+            currentTimeOfYearEl.textContent = formatTimeOfYear(entry.datetime);
+            
+            // Update counter
+            imageCounterEl.textContent = `${currentIndex + 1} / ${db.length}`;
+            
+            // Update all sliders without triggering events
+            updateSliderPositions();
+            
+            // Update zoom info
+            zoomInfo.textContent = `${Math.round(zoomLevel * 100)}%`;
+        }
+
+        function updateSliderPositions() {
+            const entry = getCurrentEntry();
+            
+            // Find position in each database
+            const chronoIdx = databaseChronological.findIndex(e => e.filepath === entry.filepath);
+            const todIdx = databaseTimeOfDay.findIndex(e => e.filepath === entry.filepath);
+            const toyIdx = databaseTimeOfYear.findIndex(e => e.filepath === entry.filepath);
+            
+            // Update sliders without triggering change events
+            slider.value = chronoIdx;
+            timeOfDaySlider.value = todIdx;
+            timeOfYearSlider.value = toyIdx;
+        }
+
+        function switchToImage(filepath, newMode) {
+            const db = getCurrentDatabase();
+            const newIndex = db.findIndex(e => e.filepath === filepath);
+            if (newIndex !== -1) {
+                currentIndex = newIndex;
+                if (newMode) setActiveMode(newMode);
+                drawAlignedImage(currentIndex);
+            }
+        }
+
+        function nextImage() {
+            const db = getCurrentDatabase();
+            if (currentIndex < db.length - 1) {
+                currentIndex++;
+                drawAlignedImage(currentIndex);
+            } else if (isPlaying) {
+                stopPlayback();
+            }
+        }
+
+        function prevImage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                drawAlignedImage(currentIndex);
+            }
+        }
+
+        // Zoom and Pan functions
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.3, 5.0);
+            drawAlignedImage(currentIndex);
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.3, 0.5);
+            drawAlignedImage(currentIndex);
+        }
+
+        function resetZoom() {
+            zoomLevel = 1.0;
+            panX = 0;
+            panY = 0;
+            drawAlignedImage(currentIndex);
+        }
+
+        function startPlayback() {
+            if (isPlaying) return;
+            isPlaying = true;
+            playBtn.textContent = '⏸ Pause';
+            playInterval = setInterval(() => {
+                nextImage();
+            }, 500); // 500ms per frame
+        }
+
+        function stopPlayback() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            playBtn.textContent = '▶ Play';
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+
+        function togglePlayback() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        // Event listeners
+        slider.addEventListener('input', (e) => {
+            stopPlayback();
+            const filepath = databaseChronological[parseInt(e.target.value)].filepath;
+            switchToImage(filepath, 'chronological');
+        });
+
+        timeOfDaySlider.addEventListener('input', (e) => {
+            stopPlayback();
+            const filepath = databaseTimeOfDay[parseInt(e.target.value)].filepath;
+            switchToImage(filepath, 'timeOfDay');
+        });
+
+        timeOfYearSlider.addEventListener('input', (e) => {
+            stopPlayback();
+            const filepath = databaseTimeOfYear[parseInt(e.target.value)].filepath;
+            switchToImage(filepath, 'timeOfYear');
+        });
+
+        playBtn.addEventListener('click', togglePlayback);
+        prevBtn.addEventListener('click', () => {
+            stopPlayback();
+            prevImage();
+        });
+        nextBtn.addEventListener('click', () => {
+            stopPlayback();
+            nextImage();
+        });
+
+        zoomInBtn.addEventListener('click', zoomIn);
+        zoomOutBtn.addEventListener('click', zoomOut);
+        resetZoomBtn.addEventListener('click', resetZoom);
+
+        showPeaksCheckbox.addEventListener('change', (e) => {
+            showPeaks = e.target.checked;
+            drawAlignedImage(currentIndex);
+        });
+
+        // Mouse wheel zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
+
+        // Pan with mouse drag
+        canvas.addEventListener('mousedown', (e) => {
+            isPanning = true;
+            panStartX = e.clientX;
+            panStartY = e.clientY;
+            lastPanX = panX;
+            lastPanY = panY;
+            canvas.style.cursor = 'grabbing';
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            
+            const dx = e.clientX - panStartX;
+            const dy = e.clientY - panStartY;
+            
+            panX = lastPanX + dx / zoomLevel;
+            panY = lastPanY + dy / zoomLevel;
+            
+            drawAlignedImage(currentIndex);
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                stopPlayback();
+                prevImage();
+            } else if (e.key === 'ArrowRight') {
+                stopPlayback();
+                nextImage();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                togglePlayback();
+            } else if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                zoomIn();
+            } else if (e.key === '-' || e.key === '_') {
+                e.preventDefault();
+                zoomOut();
+            } else if (e.key === '0') {
+                e.preventDefault();
+                resetZoom();
+            }
+        });
+
+        // Touch support for pan
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isPanning = true;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                lastPanX = panX;
+                lastPanY = panY;
+                e.preventDefault();
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isPanning && e.touches.length === 1) {
+                const dx = e.touches[0].clientX - touchStartX;
+                const dy = e.touches[0].clientY - touchStartY;
+                
+                panX = lastPanX + dx / zoomLevel;
+                panY = lastPanY + dy / zoomLevel;
+                
+                drawAlignedImage(currentIndex);
+                e.preventDefault();
+            }
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isPanning = false;
+        });
+
+        // Load database and images
+        async function initialize() {
+            try {
+                // Load database
+                const response = await fetch(DATABASE_URL);
+                database = await response.json();
+
+                if (database.length === 0) {
+                    throw new Error('No images in database');
+                }
+
+                // Create sorted databases
+                databaseChronological = [...database].sort((a, b) => {
+                    return new Date(a.datetime) - new Date(b.datetime);
+                });
+
+                databaseTimeOfDay = [...database].sort((a, b) => {
+                    return getTimeOfDayMinutes(a.datetime) - getTimeOfDayMinutes(b.datetime);
+                });
+
+                databaseTimeOfYear = [...database].sort((a, b) => {
+                    return getTimeOfYearDays(a.datetime) - getTimeOfYearDays(b.datetime);
+                });
+
+                // Set up reference peaks (use first image as reference)
+                const referenceEntry = databaseChronological[0];
+                referencePeaks = [
+                    [referenceEntry.higher_peak.x, referenceEntry.higher_peak.y],
+                    [referenceEntry.lower_peak.x, referenceEntry.lower_peak.y]
+                ];
+
+                // Update UI elements
+                const numImages = database.length;
+                
+                slider.max = numImages - 1;
+                timeOfDaySlider.max = numImages - 1;
+                timeOfYearSlider.max = numImages - 1;
+                
+                totalImagesEl.textContent = numImages;
+                
+                // Set chronological range
+                startDateEl.textContent = formatDateShort(databaseChronological[0].datetime);
+                endDateEl.textContent = formatDateShort(databaseChronological[numImages - 1].datetime);
+                
+                // Set time of day range
+                startTimeOfDayEl.textContent = formatTimeOfDay(databaseTimeOfDay[0].datetime);
+                endTimeOfDayEl.textContent = formatTimeOfDay(databaseTimeOfDay[numImages - 1].datetime);
+                
+                // Set time of year range
+                startTimeOfYearEl.textContent = formatTimeOfYear(databaseTimeOfYear[0].datetime);
+                endTimeOfYearEl.textContent = formatTimeOfYear(databaseTimeOfYear[numImages - 1].datetime);
+                
+                // Calculate date range
+                const firstDate = new Date(databaseChronological[0].datetime);
+                const lastDate = new Date(databaseChronological[numImages - 1].datetime);
+                const daysDiff = Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24));
+                dateRangeEl.textContent = `${daysDiff} days`;
+
+                // Load all images
+                const imagePromises = database.map((entry, index) => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            loadedImages[index] = img;
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.error(`Failed to load: ${entry.filepath}`);
+                            resolve(); // Continue even if one image fails
+                        };
+                        img.src = entry.filepath;
+                    });
+                });
+
+                await Promise.all(imagePromises);
+
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+
+                // Start in chronological mode
+                setActiveMode('chronological');
+                currentIndex = 0;
+                
+                // Draw first image
+                drawAlignedImage(0);
+
+                console.log(`Loaded ${database.length} images successfully!`);
+                console.log(`Chronological: ${databaseChronological.length}`);
+                console.log(`Time of Day: ${databaseTimeOfDay.length}`);
+                console.log(`Time of Year: ${databaseTimeOfYear.length}`);
+            } catch (error) {
+                console.error('Error initializing:', error);
+                loadingOverlay.innerHTML = `
+                    <p style="color: red; font-weight: bold;">Error loading images</p>
+                    <p style="margin-top: 10px;">${error.message}</p>
+                `;
+            }
+        }
+
+        // Start initialization
+        initialize();
+    </script>
+</body>
+</html>
+
