@@ -1842,6 +1842,41 @@
 
                 await Promise.all(imagePromises);
 
+                // Update loading text to show preprocessing
+                const loadingTextEl = document.querySelector('#loadingIndicator .loading-text');
+                loadingTextEl.textContent = 'Processing images...';
+                progressText.textContent = 'Preparing for smooth playback';
+
+                // Preprocess all images with edge fade for smooth playback
+                console.log('Preprocessing images with edge fade...');
+                let processedCount = 0;
+                
+                for (let i = 0; i < database.length; i++) {
+                    const entry = database[i];
+                    const img = loadedImages[i];
+                    
+                    if (img && img.complete) {
+                        const cacheKey = entry.filepath;
+                        if (!processedImageCache.has(cacheKey)) {
+                            // Process the image and cache it
+                            const processedImage = createImageWithEdgeFade(img);
+                            processedImageCache.set(cacheKey, processedImage);
+                        }
+                    }
+                    
+                    processedCount++;
+                    const percent = Math.round((processedCount / numImages) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `${processedCount} / ${numImages}`;
+                    
+                    // Allow UI to update every 5 images
+                    if (processedCount % 5 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+
+                console.log('All images preprocessed!');
+
                 // Create the composite image with all stacked images
                 console.log('Creating composite...');
                 createCompositeImage();
